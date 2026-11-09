@@ -1,0 +1,51 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install NDK and CMake
+        run: sdkmanager "ndk;29.0.13113456" "cmake;3.31.6"
+
+      - name: Fetch llama.cpp (pinned release)
+        run: ./scripts/fetch-llama.sh
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Name the APK
+        run: cp app/build/outputs/apk/release/app-release.apk KIMIA-build${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KIMIA-apk
+          path: KIMIA-build${{ github.run_number }}.apk
+
+      - name: Publish as a GitHub release (direct download link)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: KIMIA build ${{ github.run_number }}
+          files: KIMIA-build${{ github.run_number }}.apk
+          make_latest: true
