@@ -20,10 +20,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
-
+      # the ubuntu runner already ships the Android SDK; just add the NDK and CMake we need
       - name: Install NDK and CMake
-        run: sdkmanager "ndk;29.0.13113456" "cmake;3.31.6"
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "ndk;29.0.13113456" "cmake;3.31.6"
 
       - name: Fetch llama.cpp (pinned release)
         run: ./scripts/fetch-llama.sh
