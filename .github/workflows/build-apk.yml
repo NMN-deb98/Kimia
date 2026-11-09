@@ -23,8 +23,10 @@ jobs:
       # the ubuntu runner already ships the Android SDK; just add the NDK and CMake we need
       - name: Install NDK and CMake
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "ndk;29.0.13113456" "cmake;3.31.6"
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKM="$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager | head -1)"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "ndk;29.0.13113456" "cmake;3.31.6"
 
       - name: Fetch llama.cpp (pinned release)
         run: ./scripts/fetch-llama.sh
