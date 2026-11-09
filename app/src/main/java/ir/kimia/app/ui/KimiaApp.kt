@@ -28,12 +28,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import ir.kimia.app.ChatViewModel
 import ir.kimia.app.Status
 
-private enum class Screen { Chat, Models }
+private enum class Screen { Chat, Models, Settings }
 
 @Composable
 fun KimiaApp(vm: ChatViewModel = viewModel()) {
     var screen by rememberSaveable { mutableStateOf(Screen.Chat) }
     val status by vm.status.collectAsStateWithLifecycle()
+    val busy by vm.busy.collectAsStateWithLifecycle()
     val downloads by vm.downloads.collectAsStateWithLifecycle()
 
     // keep the phone awake while a model is downloading so the download is not cut off
@@ -55,7 +56,11 @@ fun KimiaApp(vm: ChatViewModel = viewModel()) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                if (screen == Screen.Chat) "کیمیا" else "مدل‌ها",
+                when (screen) {
+                    Screen.Chat -> "کیمیا"
+                    Screen.Models -> "مدل‌های آفلاین"
+                    Screen.Settings -> "حالت آنلاین"
+                },
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -64,17 +69,23 @@ fun KimiaApp(vm: ChatViewModel = viewModel()) {
                 if (screen == Screen.Chat) {
                     TextButton(
                         onClick = { vm.newChat() },
-                        enabled = status !is Status.Loading && status !is Status.Generating,
-                    ) { Text("گفتگوی جدید") }
+                        enabled = !busy && status !is Status.Loading,
+                    ) { Text("جدید") }
                     TextButton(onClick = { screen = Screen.Models }) { Text("مدل‌ها") }
+                    TextButton(onClick = { screen = Screen.Settings }) { Text("آنلاین") }
                 } else {
                     TextButton(onClick = { screen = Screen.Chat }) { Text("بازگشت") }
                 }
             }
         }
         when (screen) {
-            Screen.Chat -> ChatScreen(vm, onOpenModels = { screen = Screen.Models })
+            Screen.Chat -> ChatScreen(
+                vm,
+                onOpenModels = { screen = Screen.Models },
+                onOpenSettings = { screen = Screen.Settings },
+            )
             Screen.Models -> ModelsScreen(vm, onModelChosen = { screen = Screen.Chat })
+            Screen.Settings -> SettingsScreen(vm)
         }
     }
 }

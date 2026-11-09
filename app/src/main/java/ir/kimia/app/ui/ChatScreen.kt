@@ -36,15 +36,20 @@ import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ir.kimia.app.ChatViewModel
+import ir.kimia.app.Route
 import ir.kimia.app.Status
 import ir.kimia.app.data.ChatMessage
 import ir.kimia.app.data.Role
 
 @Composable
-fun ChatScreen(vm: ChatViewModel, onOpenModels: () -> Unit) {
+fun ChatScreen(vm: ChatViewModel, onOpenModels: () -> Unit, onOpenSettings: () -> Unit) {
     val messages by vm.messages.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
     val restored by vm.historyRestored.collectAsStateWithLifecycle()
+    val route by vm.route.collectAsStateWithLifecycle()
+    val busy by vm.busy.collectAsStateWithLifecycle()
+    val notice by vm.chatNotice.collectAsStateWithLifecycle()
+    val config by vm.config.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
@@ -56,7 +61,7 @@ fun ChatScreen(vm: ChatViewModel, onOpenModels: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (messages.isEmpty()) {
-                EmptyState(status, onOpenModels)
+                EmptyState(route, status, onOpenModels, onOpenSettings)
             } else {
                 LazyColumn(
                     state = listState,
@@ -80,7 +85,34 @@ fun ChatScreen(vm: ChatViewModel, onOpenModels: () -> Unit) {
             }
         }
 
+        notice?.let { n ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    n,
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                TextButton(onClick = { vm.dismissChatNotice() }) { Text("بستن") }
+            }
+        }
         StatusBar(status, onRetry = { vm.retryLoad() }, onOpenModels = onOpenModels)
+
+        Text(
+            when (route) {
+                Route.ONLINE -> "پاسخ‌دهی: آنلاین (${config.model})"
+                Route.LOCAL -> "پاسخ‌دهی: آفلاین (مدل روی گوشی)"
+                null -> "برای چت، یک مدل آفلاین دانلود کن یا حالت آنلاین را تنظیم کن"
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
 
         Row(
             Modifier
@@ -96,10 +128,10 @@ fun ChatScreen(vm: ChatViewModel, onOpenModels: () -> Unit) {
                 placeholder = { Text("پیامت را بنویس…") },
                 maxLines = 5,
                 textStyle = TextStyle(textDirection = TextDirection.Content),
-                enabled = status is Status.Ready || status is Status.Generating,
+                enabled = route != null || busy,
                 shape = RoundedCornerShape(20.dp),
             )
-            if (status is Status.Generating) {
+            if (busy) {
                 Button(
                     onClick = { vm.stop() },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -110,7 +142,7 @@ fun ChatScreen(vm: ChatViewModel, onOpenModels: () -> Unit) {
                         vm.send(input)
                         input = ""
                     },
-                    enabled = status is Status.Ready && input.isNotBlank(),
+                    enabled = route != null && input.isNotBlank(),
                 ) { Text("ارسال") }
             }
         }
@@ -118,7 +150,7 @@ fun ChatScreen(vm: ChatViewModel, onOpenModels: () -> Unit) {
 }
 
 @Composable
-private fun EmptyState(status: Status, onOpenModels: () -> Unit) {
+private fun EmptyState(route: Route?, status: Status, onOpenModels: () -> Unit, onOpenSettings: () -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
@@ -134,14 +166,17 @@ private fun EmptyState(status: Status, onOpenModels: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp),
         )
-        if (status is Status.NoModel) {
+        if (route == null && status is Status.NoModel) {
             Text(
-                "برای شروع، یک مدل هوش مصنوعی دانلود کن. فقط یک بار لازم است و بعدش بدون اینترنت کار می‌کند.",
+                "برای شروع یکی از این دو را انجام بده:\n• آنلاین (پاسخ‌های باکیفیت‌تر): یک کلید رایگان وارد کن.\n• آفلاین: یک مدل دانلود کن؛ فقط یک بار لازم است و بعدش بدون اینترنت کار می‌کند.",
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 24.dp),
             )
-            Button(onClick = onOpenModels, modifier = Modifier.padding(top = 12.dp)) { Text("انتخاب مدل") }
+            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onOpenSettings) { Text("تنظیم آنلاین") }
+                Button(onClick = onOpenModels) { Text("انتخاب مدل آفلاین") }
+            }
         }
     }
 }
