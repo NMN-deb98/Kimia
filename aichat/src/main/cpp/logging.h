@@ -23,7 +23,8 @@
 #endif
 
 static inline int ai_should_log(int prio) {
-    return __android_log_is_loggable(prio, LOG_TAG, LOG_MIN_LEVEL);
+    // KIMIA: __android_log_is_loggable needs API 30; a plain level check works on every supported version
+    return prio >= LOG_MIN_LEVEL;
 }
 
 #if LOG_MIN_LEVEL <= ANDROID_LOG_VERBOSE
